@@ -1,0 +1,294 @@
+  /*
+   CapitiveSense Library Demo Sketch
+   Paul Badger 2008
+   Uses a high value resistor e.g. 10M between send pin and receive pin
+   Resistor effects sensitivity, experiment with values, 50K - 50M. Larger resistor values yield larger sensor values.
+   Receive pin is the sensor pin - try different amounts of foil/metal on this pin
+
+   Jun 15, 2018
+   Xiaohui Liu
+   The electric sheep Hemingway should eat, poop, and react to human's touch then make a sound. 
+   StateEat: eyes(Happy), head(neutral-down-up-neutral)
+   StatePoop: head(neutral-halway between neutral/down-neutral)
+   StatePet: if it is eating/pooping it should finish this process and then gets to the petting state. eyes(Cute), sound, head(halfway between neutral/upp), mouth(open))
+   I used fuction transmitter() to control the facial experession in the other arduino
+*/
+#include <CapacitiveSensor.h>
+#include <Servo.h>
+#include <Wire.h>
+
+
+
+//movement(car) pins infred sensor. Nose for food, obstacle for wall
+#define nose 7
+
+//These are pins we are using
+#define buzzer  A3 //The sheep's sound when it is touched.
+#define uppclose  175 //The angle which the upper part closes
+#define uppopen  90 // The angle which the upper part opens
+#define neutralpos 100 //neutral position
+#define pingPin A2 // The pin of the ultrasonic sensor
+#define button 2 //The button to switch between states
+//Servo pins
+#define uppPin1  5 //The upper part of its head
+#define lowPin 9 //The lower part of its head, the jaw(original)
+#define uppPin2  6//The lower part, the jaw(added)
+#define Pindoor 3 //Pindoor is the door that the sheep poops from
+#define capsensorPin1 A0//this is the one that connects to foil
+#define capsensorPin2 A1
+CapacitiveSensor   cs_4_2 = CapacitiveSensor(capsensorPin2, capsensorPin1);       // 10M resistor between pins A4 & A
+
+Servo door;
+Servo upp1;
+Servo upp2;
+Servo low;
+
+// Variables and constants
+//boolean flag = false;
+boolean mark = true; //use to let the sheep only eat once
+boolean movement = false; //whether the sheep is moving or not
+int numberofball; //when this reaches 6, the sheep poop
+//int val = 0;
+
+/*For button count timer*/
+long delayVal = 1000;
+long prevMillis = 0;
+
+long total1, cm, cm2;
+
+void setup()
+{
+  cs_4_2.set_CS_AutocaL_Millis(0xFFFFFFFF);     // turn off autocalibrate on channel 1 - just as an example
+  pinMode(nose, INPUT);
+  Serial.begin(9600);
+  Wire.begin();
+  pinMode(buzzer, OUTPUT);
+  pinMode(button, INPUT);
+  //servos pins
+  low.attach(lowPin);
+  upp1.attach(uppPin1);
+  upp2.attach(uppPin2);
+  door.attach(Pindoor);
+  upp1.write(uppclose);
+  upp2.write(180 - uppclose);
+  door.write(180);
+  for (int i = 20; i <= neutralpos; i++) {
+    low.write(i);
+    Serial.println(i);
+    delay(50);
+  }
+  numberofball = 0;
+  delay(1000);
+  Serial.println("Initialized");
+}
+
+
+
+void loop() {
+  //  for (int i = 180; i >= 130; i--) {
+  //    door.write(i);
+  //    delay(50);
+  //  }
+  poop();
+  pet();
+  detectFood();
+  Serial.print("cm:   ");
+  Serial.print(cm);
+  Serial.print("   cm2:   ");
+  Serial.print(cm2);
+  Serial.print("   ball#:   ");
+  Serial.print(numberofball);
+  Serial.print("   captouch:   ");
+  Serial.println(total1);
+  delay(100);
+}
+
+//State3(Poop): eyes(poop), stop moving, head(neutral-halway between neutral/down-neutral)
+void poop() {
+  //eyePoop();
+  //Funny();
+  // establish variables for duration of the ping, and the distance result
+  // in inches and centimeters:
+  movement = false;
+  long duration;
+
+  // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+  // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+  pinMode(pingPin, OUTPUT);
+  digitalWrite(pingPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingPin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(pingPin, LOW);
+
+  // The same pin is used to read the signal from the PING))): a HIGH pulse
+  // whose duration is the time (in microseconds) from the sending of the ping
+  // to the reception of its echo off of an object.
+  pinMode(pingPin, INPUT);
+  duration = pulseIn(pingPin, HIGH);
+
+  // convert the time into a distance
+  cm2 = microsecondsToCentimeters(duration);
+
+  //  Serial.print(inches);
+  //  Serial.print("in, ");
+  //  Serial.print(cm);
+  //  Serial.print("cm");
+  //  Serial.println();
+  if (cm < 8) {
+    delay(1000);
+    numberofball++;
+
+  }
+  if (numberofball >= 6) {
+    door.write(130);
+    numberofball = 0;
+    delay(3000);
+  } 
+  else {
+    door.write(180);
+  }
+}
+
+//State4(Pet): if it is eating/pooping it should finish this process and then gets to the petting state. eyes(Cute), stop moving, sound, head(halfway between neutral/upp), mouth(open))
+void pet() {
+  long start = millis();
+  total1 =  cs_4_2.capacitiveSensor(5);
+
+  delay(50);
+  if (total1 > 500) {
+    transmitter(3);
+    low.write(neutralpos + 20);
+    if (upp1.read() != 150) {
+      for (int i = uppclose; i >= 150; i--) {
+        upp1.write(i);
+        upp2.write(180 - i);
+        //tone(buzzer, 100*i);
+        digitalWrite(buzzer, HIGH);
+        delay(30);
+      }
+    }
+  }
+  else {
+    transmitter(0);
+    low.write(neutralpos);
+    digitalWrite(buzzer, LOW);
+    if (upp1.read() != uppclose) {
+      for (int i = 150; i <= uppclose; i++) {
+        upp1.write(i);
+        upp2.write(180 - i);
+        delay(30);
+      }
+    }
+
+  }
+}
+//  if (ispet == 0 && waspet == 1) {
+//    numberofpet ++;
+//  }
+//  if (numberofpet >= pettotal) {
+//    movement = !movement;
+//    numberofpet = 0;
+//  }
+//}
+
+
+
+//State2(Eat): eyes(Happy), stop moving, head(neutral-down-up-neutral)
+void eat() {
+  transmitter(1);
+  movement = false;
+  //It makes the whole head start at a netural position.
+  upp1.write(uppclose);
+  upp2.write(180 - uppclose);
+  low.write(neutralpos);
+  delay(500);
+  //It opens the upper part
+  for (int i = uppclose; i >= uppopen; i--) {
+    upp1.write(i);
+    upp2.write(180 - i);
+    delay(20);
+  }
+  //it moves the lower part to the ground
+  for (int i = 90; i >= 0; i--) {
+    low.write(i);
+    delay(25);
+  }
+  //it moves the upper part to close the mouth
+  for (int i = uppopen; i <= uppclose; i++)
+  {
+    upp1.write(i);
+    upp2.write(180 - i);
+    delay(20);
+  }
+  //it moves the entire head up
+  for (int i = 0; i <= 180; i++) {
+    low.write(i);
+    delay(20);
+  }
+  //it opens
+  upp1.write(150);
+  upp2.write(30);
+  delay(100);
+  //the whole thing moves back to the actual neutral position
+  for (int i = 180; i >= neutralpos; i--) {
+    low.write(i);
+    delay(30);
+  }
+  //the mouth closes
+  for (int i = 150; i <= uppclose; i++) {
+    upp1.write(i);
+    upp2.write(180 - i);
+    delay(10);
+  }
+  transmitter(0);
+}
+int transmitter(int n) {
+  Wire.beginTransmission(8); // transmit to device #8
+  Wire.write(n * 2);            // sends one byte
+  Wire.endTransmission();    // stop transmitting
+}
+void detectFood() {
+  // establish variables for duration of the ping, and the distance result
+  // in inches and centimeters:
+  movement = false;
+  long duration;
+
+  // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+  // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+  pinMode(nose, OUTPUT);
+  digitalWrite(nose, LOW);
+  delayMicroseconds(2);
+  digitalWrite(nose, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(nose, LOW);
+
+  // The same pin is used to read the signal from the PING))): a HIGH pulse
+  // whose duration is the time (in microseconds) from the sending of the ping
+  // to the reception of its echo off of an object.
+  pinMode(nose, INPUT);
+  duration = pulseIn(nose, HIGH);
+
+  // convert the time into a distance
+  cm = microsecondsToCentimeters(duration);
+
+  //  Serial.print(inches);
+  //  Serial.print("in, ");
+  //    Serial.print(cm);
+  //    Serial.print("cm");
+  //    Serial.println();
+  if ((cm < 8) && (cm > 0)) {
+    eat();
+  }
+  else{
+    transmitter(0);
+  }
+}
+
+long microsecondsToCentimeters(long microseconds) {
+  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
+  // The ping travels out and back, so to find the distance of the object we
+  // take half of the distance travelled.
+  return microseconds / 29 / 2;
+}
+
