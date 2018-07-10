@@ -1,0 +1,181 @@
+#include <TFT_22_ILI9225.h>
+#include "SPI.h"
+
+#ifdef ARDUINO_ARCH_STM32F1
+#define TFT_RST PA1
+#define TFT_RS  PA2
+#define TFT_CS  PA0 // SS
+#define TFT_SDI PA7 // MOSI
+#define TFT_CLK PA5 // SCK
+#define TFT_LED 0 // 0 if wired to +5V directly
+#else
+#define TFT_RST 12
+#define TFT_RS  9
+#define TFT_CS  10  // SS
+#define TFT_SDI 11  // MOSI
+#define TFT_CLK 13  // SCK
+#define TFT_LED 8   // 0 if wired to +5V directly
+#endif
+
+#define TFT_BRIGHTNESS 200 // Initial brightness of TFT backlight (optional)
+
+// Use hardware SPI (faster - on Uno: 13-SCK, 12-MISO, 11-MOSI)
+TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_LED, TFT_BRIGHTNESS);
+// Use software SPI (slower)
+//TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_SDI, TFT_CLK, TFT_LED, TFT_BRIGHTNESS);
+
+
+// Variables and constants
+uint16_t x, y;
+boolean flag = false;
+boolean FLAG=true;
+int count = 0;
+int superCount = 0;
+int megaCount = 0;
+int val = 0;
+#define button 2 //The button to start the entire eating process
+int buttonState = 0;
+
+/*For button count timer*/
+long delayVal = 800;
+long prevMillis = 0;
+
+// Wire Slave Receiver
+// by Nicholas Zambetti <http://www.zambetti.com>
+
+// Demonstrates use of the Wire library
+// Receives data as an I2C/TWI slave device
+// Refer to the "Wire Master Writer" example for use with this
+
+// Created 29 March 2006
+
+// This example code is in the public domain.
+
+
+#include <Wire.h>
+
+void setup() {
+  tft.begin();
+
+  Wire.begin(8);                // join i2c bus with address #8
+  Wire.onReceive(receiveEvent); // register event
+  Serial.begin(9600);           // start serial for output
+  superCount = count;
+}
+
+void loop() {
+  if ((count<10)&&(superCount<10)){
+    test();
+  }
+  else{
+    count=0;
+    superCount=0;
+  }
+
+Serial.print(count);
+Serial.print("   ");
+Serial.println(superCount);
+}
+
+
+// function that executes whenever data is received from master
+// this function is registered as an event, see setup()
+void receiveEvent(int howMany) {
+  count = Wire.read();    // receive byte as an integer         // print the integer
+}
+void Happy() {
+  tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+  tft.fillTriangle(tft.maxX() / 5 - 13, 2 * tft.maxY() / 3, tft.maxX() / 2, tft.maxY() / 5, 4 * tft.maxX() / 5 + 13, 2 * tft.maxY() / 3, COLOR_RED);
+  tft.fillCircle(tft.maxX() / 3, 3 *  tft.maxY() / 4, 40, COLOR_RED);
+  tft.fillCircle(2 * tft.maxX() / 3, 3 * tft.maxY() / 4, 40, COLOR_RED);
+
+  tft.setBacklight(HIGH);
+  //delay(10000);
+  //while (true);
+}
+
+void Funny() {
+  /*  while (true){
+    for (int i=40; i<tft.maxX()-40; i+=10){
+      tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+      tft.fillCircle(i,tft.maxY()/2,40, COLOR_BLACK);
+    }
+      for (int i=tft.maxX()-40; i>40; i-=10){
+      tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+      tft.fillCircle(i,tft.maxY()/2,40, COLOR_BLACK);
+    }
+    }
+  */
+  bool leftorright;
+  for (int i = 0; i < 3; i++) {
+    if (millis() - prevMillis >= delayVal) {
+      leftorright = !leftorright;
+    }
+    if (leftorright) {
+      tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+      tft.fillCircle(tft.maxX() / 4, tft.maxY() / 2, 40, COLOR_BLACK);
+    }
+    else {
+      tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+      tft.fillCircle(3 * tft.maxX() / 4, tft.maxY() / 2, 40, COLOR_BLACK);
+    }
+  }
+  tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+  tft.fillCircle(tft.maxX() / 2, tft.maxY() / 2, 60, COLOR_BLACK);
+  //while (true);
+}
+
+
+void Bored() {
+  tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+  tft.fillRectangle(tft.maxX() / 5, tft.maxY() / 2, 4 * tft.maxX() / 5, 3 * tft.maxY() / 5, COLOR_BLACK);
+  //while (true);
+}
+
+void Cute() {
+  tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+  tft.fillCircle(tft.maxX() / 2, tft.maxY() / 2, 70, COLOR_BLACK);
+  tft.fillCircle(tft.maxX() / 2, 3 * tft.maxY() / 4 - 15, 35, COLOR_WHITE);
+  tft.fillCircle(tft.maxX() / 2, 1 * tft.maxY() / 4 + 15, 25, COLOR_WHITE);
+  //while (true);
+}
+void eyeNormal() {
+  tft.fillRectangle(0, 0, tft.maxX(), tft.maxY(), COLOR_WHITE);
+  tft.fillCircle(tft.maxX() / 2, tft.maxY() / 2, 60, COLOR_BLACK);
+  //while (true);
+}
+
+
+void test(){
+    if ((superCount==7)&&(count==0)){
+      superCount=0;
+      count=0;
+    }
+    if ((count%2==0)&&(FLAG==false)){
+      superCount++;
+      FLAG=true;
+    }
+    else if ((superCount%2!=0)&&(count>superCount)){
+      superCount=count;
+    }
+    else{
+      switch (superCount) {
+      case 0:
+        eyeNormal();
+        FLAG=false;
+        break;
+      case 2:
+        Happy();
+        FLAG=false;
+        break;
+      case 4:
+        Funny();
+        FLAG=false;
+        break;
+      case 6:
+        Cute();
+        FLAG=false;
+        break;
+    }
+    }
+}
